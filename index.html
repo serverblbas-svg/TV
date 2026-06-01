@@ -26,6 +26,10 @@
             --green: #00c853;
             --blue: #2962ff;
             --orange: #ff9800;
+            --purple: #9c27b0;
+            --cyan: #00bcd4;
+            --yellow: #ffeb3b;
+            --pink: #e91e63;
         }
 
         body {
@@ -159,7 +163,7 @@
             position: relative;
         }
 
-        /* ========== GROUPS SIDEBAR (Left side - like image 3) ========== */
+        /* ========== GROUPS SIDEBAR (Left side) ========== */
         .groups-sidebar {
             width: 320px;
             background: var(--bg);
@@ -230,15 +234,46 @@
             transition: all 0.2s;
             border-bottom: 1px solid var(--border);
             gap: 12px;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .group-row::before {
+            content: '';
+            position: absolute;
+            right: 0;
+            top: 0;
+            width: 0;
+            height: 100%;
+            background: var(--accent);
+            transition: width 0.3s;
         }
 
         .group-row:hover {
             background: var(--bg-card);
         }
 
+        .group-row:hover::before {
+            width: 4px;
+        }
+
         .group-row.active {
-            background: var(--bg-card);
+            background: linear-gradient(90deg, rgba(255,51,51,0.15), var(--bg-card));
             border-right: 3px solid var(--accent);
+        }
+
+        .group-row.active::before {
+            width: 4px;
+        }
+
+        .group-row.active .group-name {
+            color: var(--accent);
+            font-weight: 700;
+        }
+
+        .group-row.active .group-count {
+            background: var(--accent);
+            color: white;
         }
 
         .group-flag {
@@ -258,12 +293,17 @@
             font-size: 0.95rem;
             font-weight: 600;
             color: var(--text);
+            transition: all 0.3s;
         }
 
         .group-count {
-            font-size: 0.9rem;
+            font-size: 0.85rem;
             color: var(--text-muted);
             font-weight: 600;
+            background: var(--bg-hover);
+            padding: 3px 10px;
+            border-radius: 12px;
+            transition: all 0.3s;
         }
 
         /* Favorites row special */
@@ -387,6 +427,7 @@
             justify-content: center;
             overflow: hidden;
             flex-shrink: 0;
+            position: relative;
         }
 
         .ch-logo img {
@@ -399,6 +440,19 @@
         .ch-logo i {
             font-size: 1.2rem;
             color: var(--text-muted);
+        }
+
+        /* Auto-generated logo */
+        .ch-logo.auto-logo {
+            background: linear-gradient(135deg, var(--accent), var(--orange));
+            color: white;
+            font-weight: 800;
+            font-size: 0.7rem;
+            text-align: center;
+            line-height: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
         }
 
         .ch-name {
@@ -785,7 +839,6 @@
             }
         }
     </style>
-<base target="_blank">
 </head>
 <body>
     <!-- Navbar -->
@@ -975,6 +1028,33 @@
             });
         }
 
+        // Generate auto logo from channel name
+        function generateAutoLogo(channelName) {
+            // Extract first letters of important words
+            const words = channelName.replace(/[^a-zA-Z0-9\s]/g, '').split(/\s+/).filter(w => w.length > 0);
+            let letters = '';
+
+            if (words.length >= 2) {
+                letters = words[0][0] + words[1][0];
+            } else if (words.length === 1) {
+                letters = words[0].substring(0, 2);
+            } else {
+                letters = 'TV';
+            }
+
+            return letters.toUpperCase();
+        }
+
+        // Get color for channel based on name
+        function getChannelColor(name) {
+            const colors = ['#ff3333', '#ff9800', '#00c853', '#2962ff', '#9c27b0', '#00bcd4', '#ffeb3b', '#e91e63'];
+            let hash = 0;
+            for (let i = 0; i < name.length; i++) {
+                hash = name.charCodeAt(i) + ((hash << 5) - hash);
+            }
+            return colors[Math.abs(hash) % colors.length];
+        }
+
         function renderGroupsList() {
             const list = document.getElementById('groupsList');
             list.innerHTML = '';
@@ -1102,9 +1182,15 @@
                 row.dataset.name = channel.name.toLowerCase();
                 row.dataset.group = channel.group.toLowerCase();
 
-                const logoHtml = channel.logo 
-                    ? `<img src="${channel.logo}" alt="${channel.name}" onerror="this.style.display='none'; this.parentElement.innerHTML='<i class=\'fas fa-tv\'></i>'">`
-                    : '<i class="fas fa-tv"></i>';
+                // Determine logo HTML
+                let logoHtml;
+                if (channel.logo) {
+                    logoHtml = `<img src="${channel.logo}" alt="${channel.name}" onerror="this.style.display='none'; this.parentElement.innerHTML='<div class=\'ch-logo auto-logo\' style=\'background:linear-gradient(135deg, ${getChannelColor(channel.name)}, ${getChannelColor(channel.name + '2')})\'>${generateAutoLogo(channel.name)}</div>'">`;
+                } else {
+                    const color = getChannelColor(channel.name);
+                    const letters = generateAutoLogo(channel.name);
+                    logoHtml = `<div class="ch-logo auto-logo" style="background:linear-gradient(135deg, ${color}, ${getChannelColor(channel.name + '2')})">${letters}</div>`;
+                }
 
                 const isFav = favorites.includes(channel.name);
 
