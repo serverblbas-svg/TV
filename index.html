@@ -334,6 +334,7 @@
             border-bottom: 1px solid var(--border);
             display: flex;
             align-items: center;
+            justify-content: space-between;
             gap: 12px;
         }
 
@@ -392,7 +393,7 @@
         }
 
         .channel-row.active {
-            background: var(--bg-active);
+            background: var(--text);
             border-color: var(--accent);
             box-shadow: 0 0 20px var(--accent-glow), 0 4px 15px rgba(255, 51, 51, 0.2);
             transform: scale(1.02);
@@ -447,7 +448,7 @@
             background: linear-gradient(135deg, var(--accent), var(--orange));
             color: white;
             font-weight: 800;
-            font-size: 0.7rem;
+            font-size: 0.8rem;
             text-align: center;
             line-height: 1;
             display: flex;
@@ -488,8 +489,7 @@
         }
 
         .ch-settings:hover {
-            background: var(--bg-hover);
-            color: var(--text);
+            background: rgba(0,0,0,0.1);
         }
 
         /* ========== RIGHT CONTENT (Player + EPG) ========== */
@@ -528,6 +528,7 @@
             justify-content: center;
             background: linear-gradient(135deg, #0a0a0a, #1a1a1a);
             gap: 20px;
+            z-index: 5;
         }
 
         .player-placeholder i {
@@ -557,13 +558,8 @@
             animation: dotPulse 1.4s ease-in-out infinite;
         }
 
-        .loading-dots .dot:nth-child(2) {
-            animation-delay: 0.2s;
-        }
-
-        .loading-dots .dot:nth-child(3) {
-            animation-delay: 0.4s;
-        }
+        .loading-dots .dot:nth-child(2) { animation-delay: 0.2s; }
+        .loading-dots .dot:nth-child(3) { animation-delay: 0.4s; }
 
         @keyframes dotPulse {
             0%, 80%, 100% { transform: scale(0.6); opacity: 0.5; }
@@ -583,6 +579,7 @@
             display: flex;
             flex-direction: column;
             gap: 10px;
+            z-index: 10;
         }
 
         .player-area:hover .player-controls {
@@ -788,10 +785,10 @@
                 top: 0;
                 height: 100%;
                 z-index: 50;
-                transform: translateX(-100%);
+                transform: translateX(100%);
                 transition: transform 0.3s ease;
-                border-right: 4px solid var(--accent);
-                border-left: none;
+                border-left: 4px solid var(--accent);
+                border-right: none;
             }
             .groups-sidebar.open {
                 transform: translateX(0);
@@ -831,12 +828,8 @@
         }
 
         @media (max-width: 600px) {
-            .logo span {
-                display: none;
-            }
-            .nav-center {
-                display: none;
-            }
+            .logo span { display: none; }
+            .nav-center { display: none; }
         }
     </style>
 </head>
@@ -849,11 +842,11 @@
         </div>
 
         <div class="nav-center">
-            <button class="nav-btn active" onclick="switchView('live')">
+            <button class="nav-btn active" id="liveBtn" onclick="switchView('live')">
                 <i class="fas fa-tv"></i>
                 Live TV
             </button>
-            <button class="nav-btn" onclick="switchView('epg')">
+            <button class="nav-btn" id="epgBtn" onclick="switchView('epg')">
                 <i class="fas fa-calendar-alt"></i>
                 EPG Guide
             </button>
@@ -877,7 +870,7 @@
             <div class="groups-header">
                 <div class="groups-search">
                     <i class="fas fa-search"></i>
-                    <input type="text" id="groupSearch" placeholder="Search groups..." oninput="filterGroups(this.value)">
+                    <input type="text" id="groupSearch" placeholder="گەڕان بۆ گرووپەکان..." oninput="filterGroups(this.value)">
                 </div>
             </div>
             <div class="groups-list" id="groupsList">
@@ -890,7 +883,7 @@
             <div class="sidebar-header">
                 <div class="sidebar-title">
                     <i class="fas fa-list"></i>
-                    <span id="listTitle">All Channels</span>
+                    <span id="listTitle">هەموو کەناڵەکان</span>
                 </div>
                 <div class="channel-count" id="channelCount">0 کەناڵ</div>
             </div>
@@ -906,7 +899,7 @@
         <div class="right-content">
             <!-- Player -->
             <div class="player-area">
-                <video id="videoPlayer" controls></video>
+                <video id="videoPlayer"></video>
                 <div class="player-placeholder" id="playerPlaceholder">
                     <i class="fas fa-tv"></i>
                     <div class="player-placeholder-text">تکایە کەناڵێک هەڵبژێرە</div>
@@ -924,7 +917,7 @@
                         <button class="ctrl-btn" onclick="toggleMute()">
                             <i class="fas fa-volume-up" id="muteIcon"></i>
                         </button>
-                        <input type="range" class="vol-slider" id="volSlider" min="0" max="100" value="100" onchange="setVolume(this.value)">
+                        <input type="range" class="vol-slider" id="volSlider" min="0" max="100" value="100" oninput="setVolume(this.value)">
                         <div style="flex:1"></div>
                         <button class="ctrl-btn" onclick="toggleFullscreen()">
                             <i class="fas fa-expand"></i>
@@ -963,19 +956,18 @@
         let hls = null;
         let isPlaying = false;
         let currentView = 'live';
-        let epgData = {};
         let favorites = JSON.parse(localStorage.getItem('kamal_favorites') || '[]');
+        const video = document.getElementById('videoPlayer');
 
         document.addEventListener('DOMContentLoaded', () => {
             loadChannels();
-            loadEPGData();
-            setupKeyboard();
             setupVideoEvents();
         });
 
         async function loadChannels() {
             try {
                 const response = await fetch(M3U_URL);
+                if (!response.ok) throw new Error('تۆڕەکە وەڵامی نەبوو');
                 const data = await response.text();
                 parseM3U(data);
                 document.getElementById('channelCount').textContent = allChannels.length + ' کەناڵ';
@@ -986,7 +978,7 @@
                 document.getElementById('channelList').innerHTML = `
                     <div class="loading-screen">
                         <i class="fas fa-exclamation-triangle"></i>
-                        <div>هەڵە لە بارکردنی کەناڵەکان</div>
+                        <div>هەڵە لە بارکردنی کەناڵەکان ڕوویدا</div>
                     </div>
                 `;
             }
@@ -994,8 +986,8 @@
 
         function parseM3U(data) {
             const lines = data.split('\n');
-            let currentGroup = 'گشتی';
-            let currentChannel = null;
+            let currentGroupName = 'گشتی';
+            let activeChan = null;
             let channelNum = 1;
 
             lines.forEach(line => {
@@ -1005,49 +997,38 @@
                     const logoMatch = line.match(/tvg-logo="([^"]*)"/);
                     const nameMatch = line.match(/,(.*)$/);
 
-                    if (groupMatch) currentGroup = groupMatch[1] || 'گشتی';
+                    if (groupMatch && groupMatch[1]) currentGroupName = groupMatch[1];
 
-                    if (!groups[currentGroup]) {
-                        groups[currentGroup] = [];
+                    if (!groups[currentGroupName]) {
+                        groups[currentGroupName] = [];
                     }
 
-                    currentChannel = {
+                    activeChan = {
                         num: channelNum++,
                         name: nameMatch ? nameMatch[1].trim() : 'کەناڵ',
                         logo: logoMatch ? logoMatch[1] : '',
-                        group: currentGroup,
+                        group: currentGroupName,
                         url: ''
                     };
-
-                    groups[currentGroup].push(currentChannel);
-                    allChannels.push(currentChannel);
-                } else if (line.startsWith('http') && currentChannel) {
-                    currentChannel.url = line;
-                    currentChannel = null;
+                } else if (line.startsWith('http') && activeChan) {
+                    activeChan.url = line;
+                    groups[currentGroupName].push(activeChan);
+                    allChannels.push(activeChan);
+                    activeChan = null;
                 }
             });
         }
 
-        // Generate auto logo from channel name
         function generateAutoLogo(channelName) {
-            // Extract first letters of important words
-            const words = channelName.replace(/[^a-zA-Z0-9\s]/g, '').split(/\s+/).filter(w => w.length > 0);
-            let letters = '';
-
-            if (words.length >= 2) {
-                letters = words[0][0] + words[1][0];
-            } else if (words.length === 1) {
-                letters = words[0].substring(0, 2);
-            } else {
-                letters = 'TV';
-            }
-
-            return letters.toUpperCase();
+            const cleanName = channelName.replace(/[^a-zA-Z0-9\s]/g, '').trim();
+            const words = cleanName.split(/\s+/).filter(w => w.length > 0);
+            if (words.length >= 2) return (words[0][0] + words[1][0]).toUpperCase();
+            if (words.length === 1) return words[0].substring(0, 2).toUpperCase();
+            return 'TV';
         }
 
-        // Get color for channel based on name
         function getChannelColor(name) {
-            const colors = ['#ff3333', '#ff9800', '#00c853', '#2962ff', '#9c27b0', '#00bcd4', '#ffeb3b', '#e91e63'];
+            const colors = ['#ff3333', '#ff9800', '#00c853', '#2962ff', '#9c27b0', '#00bcd4', '#e91e63'];
             let hash = 0;
             for (let i = 0; i < name.length; i++) {
                 hash = name.charCodeAt(i) + ((hash << 5) - hash);
@@ -1059,446 +1040,257 @@
             const list = document.getElementById('groupsList');
             list.innerHTML = '';
 
-            // Favorites row
+            // Favorites Group
             const favRow = document.createElement('div');
             favRow.className = 'group-row favorites' + (currentGroup === 'favorites' ? ' active' : '');
             favRow.onclick = () => selectGroup('favorites');
             favRow.innerHTML = `
-                <div class="group-name">
-                    Favorites
-                    <i class="fas fa-heart heart-icon"></i>
-                </div>
+                <div class="group-name">دڵخوازەکان <i class="fas fa-heart heart-icon"></i></div>
                 <div class="group-count">${favorites.length}</div>
             `;
             list.appendChild(favRow);
 
-            // All channels row
+            // All Channels Group
             const allRow = document.createElement('div');
             allRow.className = 'group-row' + (currentGroup === null ? ' active' : '');
             allRow.onclick = () => selectGroup(null);
             allRow.innerHTML = `
-                <div class="group-name">All channels</div>
+                <div class="group-name">هەموو کەناڵەکان</div>
                 <div class="group-count">${allChannels.length}</div>
             `;
             list.appendChild(allRow);
 
-            // Group rows
+            // Dynamically parsed groups
             Object.keys(groups).sort().forEach(groupName => {
                 const count = groups[groupName].length;
+                if(count === 0) return;
                 const row = document.createElement('div');
                 row.className = 'group-row' + (currentGroup === groupName ? ' active' : '');
-                row.dataset.name = groupName.toLowerCase();
-
-                // Extract language prefix (AR, EN, etc.)
+                
                 const langMatch = groupName.match(/^([A-Z]{2})\s*/);
                 const lang = langMatch ? langMatch[1] : '';
                 const nameWithoutLang = lang ? groupName.substring(lang.length).trim() : groupName;
 
+                row.onclick = () => selectGroup(groupName);
                 row.innerHTML = `
-                    <div class="group-flag">${lang}</div>
+                    <div class="group-flag">${lang || '📺'}</div>
                     <div class="group-icon"><i class="fas fa-bolt"></i></div>
                     <div class="group-name">${nameWithoutLang}</div>
                     <div class="group-count">${count}</div>
                 `;
-
-                row.onclick = () => selectGroup(groupName);
                 list.appendChild(row);
             });
         }
 
         function selectGroup(groupName) {
             currentGroup = groupName;
-
-            // Update active states in groups list
-            document.querySelectorAll('.group-row').forEach(row => row.classList.remove('active'));
-            event.currentTarget.classList.add('active');
-
-            // Filter and show channels
-            let channelsToShow = [];
-            let title = '';
-
+            renderGroupsList();
+            
+            let filtered = [];
             if (groupName === 'favorites') {
-                channelsToShow = allChannels.filter(ch => favorites.includes(ch.name));
-                title = 'Favorites';
-                document.getElementById('channelCount').textContent = channelsToShow.length + ' دڵخواز';
+                filtered = allChannels.filter(c => favorites.includes(c.url));
+                document.getElementById('listTitle').textContent = 'دڵخوازەکان';
             } else if (groupName === null) {
-                channelsToShow = allChannels;
-                title = 'All Channels';
-                document.getElementById('channelCount').textContent = allChannels.length + ' کەناڵ';
+                filtered = allChannels;
+                document.getElementById('listTitle').textContent = 'هەموو کەناڵەکان';
             } else {
-                channelsToShow = groups[groupName] || [];
-                title = groupName;
-                document.getElementById('channelCount').textContent = channelsToShow.length + ' کەناڵ';
+                filtered = groups[groupName] || [];
+                document.getElementById('listTitle').textContent = groupName;
             }
+            
+            document.getElementById('channelCount').textContent = filtered.length + ' کەناڵ';
+            renderChannelList(filtered);
 
-            document.getElementById('listTitle').textContent = title;
-            renderChannelList(channelsToShow);
-
-            // On mobile, close groups sidebar after selection
             if (window.innerWidth <= 1200) {
-                document.getElementById('groupsSidebar').classList.remove('open');
+                toggleGroups();
             }
-        }
-
-        function filterGroups(query) {
-            const rows = document.querySelectorAll('.group-row');
-            const lowerQuery = query.toLowerCase();
-
-            rows.forEach(row => {
-                const name = row.dataset.name || '';
-                const text = row.textContent.toLowerCase();
-                if (text.includes(lowerQuery) || name.includes(lowerQuery)) {
-                    row.style.display = 'flex';
-                } else {
-                    row.style.display = 'none';
-                }
-            });
-        }
-
-        function toggleGroups() {
-            const sidebar = document.getElementById('groupsSidebar');
-            const btn = document.getElementById('categoriesBtn');
-            sidebar.classList.toggle('open');
-            btn.classList.toggle('active');
         }
 
         function renderChannelList(channels) {
             const list = document.getElementById('channelList');
             list.innerHTML = '';
 
-            if (channels.length === 0) {
-                list.innerHTML = `
-                    <div class="loading-screen">
-                        <i class="fas fa-inbox"></i>
-                        <div>هیچ کەناڵێک نیە</div>
-                    </div>
-                `;
+            if(channels.length === 0) {
+                list.innerHTML = '<div class="loading-screen"><div>هیچ کەناڵێک نەدۆزرایەوە</div></div>';
                 return;
             }
 
-            channels.forEach(channel => {
+            channels.forEach(chan => {
+                const isFav = favorites.includes(chan.url);
                 const row = document.createElement('div');
-                row.className = 'channel-row';
-                row.dataset.name = channel.name.toLowerCase();
-                row.dataset.group = channel.group.toLowerCase();
-
-                // Determine logo HTML
-                let logoHtml;
-                if (channel.logo) {
-                    logoHtml = `<img src="${channel.logo}" alt="${channel.name}" onerror="this.style.display='none'; this.parentElement.innerHTML='<div class=\'ch-logo auto-logo\' style=\'background:linear-gradient(135deg, ${getChannelColor(channel.name)}, ${getChannelColor(channel.name + '2')})\'>${generateAutoLogo(channel.name)}</div>'">`;
-                } else {
-                    const color = getChannelColor(channel.name);
-                    const letters = generateAutoLogo(channel.name);
-                    logoHtml = `<div class="ch-logo auto-logo" style="background:linear-gradient(135deg, ${color}, ${getChannelColor(channel.name + '2')})">${letters}</div>`;
-                }
-
-                const isFav = favorites.includes(channel.name);
-
+                row.className = 'channel-row' + (currentChannel && currentChannel.url === chan.url ? ' active' : '');
+                
+                let logoContent = chan.logo ? `<img src="${chan.logo}" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex'">` : '';
+                let styleBg = chan.logo ? '' : `style="background:${getChannelColor(chan.name)}"`;
+                
                 row.innerHTML = `
-                    <div class="ch-number">${channel.num}</div>
-                    <div class="ch-logo">${logoHtml}</div>
-                    <div class="ch-name">${channel.name}</div>
-                    <div class="ch-settings" onclick="event.stopPropagation(); toggleFavoriteChannel('${channel.name}')">
+                    <div class="ch-number">${chan.num}</div>
+                    <div class="ch-logo ${chan.logo ? '' : 'auto-logo'}" ${styleBg}>
+                        ${logoContent}
+                        <span class="auto-text" style="${chan.logo ? 'display:none' : ''}">${generateAutoLogo(chan.name)}</span>
+                    </div>
+                    <div class="ch-name">${chan.name}</div>
+                    <div class="ch-settings" onclick="toggleFavorite(event, '${chan.url}')">
                         <i class="${isFav ? 'fas' : 'far'} fa-heart" style="color:${isFav ? 'var(--accent)' : ''}"></i>
                     </div>
                 `;
-
-                row.onclick = () => playChannel(channel, row);
+                row.onclick = () => playChannel(chan);
                 list.appendChild(row);
             });
         }
 
-        function toggleFavoriteChannel(channelName) {
-            const index = favorites.indexOf(channelName);
-            if (index > -1) {
-                favorites.splice(index, 1);
-            } else {
-                favorites.push(channelName);
-            }
-            localStorage.setItem('kamal_favorites', JSON.stringify(favorites));
+        function playChannel(chan) {
+            currentChannel = chan;
+            
+            // UI Upgrades
+            document.getElementById('playerPlaceholder').style.display = 'none';
+            document.getElementById('epgChannelName').textContent = chan.name;
+            
+            // Mark active row
+            const rows = document.querySelectorAll('.channel-row');
+            rows.forEach((r, idx) => {
+                r.classList.remove('active');
+                if(chan.num === parseInt(r.querySelector('.ch-number').textContent)) {
+                    r.classList.add('active');
+                }
+            });
 
-            // Refresh groups list to update count
-            renderGroupsList();
-
-            // If currently viewing favorites, refresh
-            if (currentGroup === 'favorites') {
-                const favChannels = allChannels.filter(ch => favorites.includes(ch.name));
-                renderChannelList(favChannels);
-                document.getElementById('channelCount').textContent = favChannels.length + ' دڵخواز';
-            } else {
-                // Update heart icon
-                const rows = document.querySelectorAll('.channel-row');
-                rows.forEach(row => {
-                    const nameEl = row.querySelector('.ch-name');
-                    if (nameEl && nameEl.textContent === channelName) {
-                        const heartIcon = row.querySelector('.ch-settings i');
-                        const isFav = favorites.includes(channelName);
-                        heartIcon.className = isFav ? 'fas fa-heart' : 'far fa-heart';
-                        heartIcon.style.color = isFav ? 'var(--accent)' : '';
-                    }
-                });
-            }
-        }
-
-        function playChannel(channel, rowElement) {
-            if (!channel || !channel.url) return;
-
-            currentChannel = channel;
-
-            // Update active state
-            document.querySelectorAll('.channel-row').forEach(r => r.classList.remove('active'));
-            if (rowElement) rowElement.classList.add('active');
-
-            const video = document.getElementById('videoPlayer');
-            const placeholder = document.getElementById('playerPlaceholder');
-            const loadingDots = document.getElementById('loadingDots');
-
-            placeholder.style.display = 'none';
-            loadingDots.style.display = 'flex';
-
-            if (hls) {
-                hls.destroy();
-                hls = null;
-            }
-
+            // Start Playback
             if (Hls.isSupported()) {
-                hls = new Hls({
-                    debug: false,
-                    enableWorker: true,
-                    lowLatencyMode: true
-                });
-                hls.loadSource(channel.url);
+                if (hls) hls.destroy();
+                hls = new Hls();
+                hls.loadSource(chan.url);
                 hls.attachMedia(video);
                 hls.on(Hls.Events.MANIFEST_PARSED, () => {
                     video.play();
                     isPlaying = true;
                     updatePlayIcon();
-                    loadingDots.style.display = 'none';
-                });
-                hls.on(Hls.Events.ERROR, () => {
-                    loadingDots.style.display = 'none';
                 });
             } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
-                video.src = channel.url;
-                video.play();
-                isPlaying = true;
-                updatePlayIcon();
-                loadingDots.style.display = 'none';
+                video.src = chan.url;
+                video.addEventListener('loadedmetadata', () => {
+                    video.play();
+                    isPlaying = true;
+                    updatePlayIcon();
+                });
             }
-
-            // Update EPG
-            document.getElementById('epgChannelName').textContent = channel.name;
-            renderEPG(channel.name);
-        }
-
-        async function loadEPGData() {
-            try {
-                const response = await fetch(EPG_URL);
-                const data = await response.text();
-                parseEPG(data);
-            } catch (e) {
-                console.log('EPG load failed');
-            }
-        }
-
-        function parseEPG(xmlData) {
-            const parser = new DOMParser();
-            const xmlDoc = parser.parseFromString(xmlData, "text/xml");
-            const programmes = xmlDoc.querySelectorAll('programme');
-
-            programmes.forEach(prog => {
-                const channel = prog.getAttribute('channel');
-                const start = prog.getAttribute('start');
-                const stop = prog.getAttribute('stop');
-                const title = prog.querySelector('title')?.textContent || 'بەرنامە';
-                const desc = prog.querySelector('desc')?.textContent || '';
-
-                if (!epgData[channel]) epgData[channel] = [];
-                epgData[channel].push({ start, stop, title, desc });
-            });
-        }
-
-        function renderEPG(channelName) {
-            const epgList = document.getElementById('epgList');
-
-            let channelEPG = null;
-            for (let key in epgData) {
-                if (key.toLowerCase().includes(channelName.toLowerCase()) || 
-                    channelName.toLowerCase().includes(key.toLowerCase())) {
-                    channelEPG = epgData[key];
-                    break;
-                }
-            }
-
-            if (!channelEPG || channelEPG.length === 0) {
-                const now = new Date();
-                const times = [];
-                for (let i = -1; i < 4; i++) {
-                    const t = new Date(now.getTime() + i * 60 * 60 * 1000);
-                    times.push(t.toLocaleTimeString('en', {hour: '2-digit', minute: '2-digit', hour12: false}));
-                }
-
-                epgList.innerHTML = `
-                    <div class="epg-row current">
-                        <div class="epg-time">${times[1]}</div>
-                        <div class="epg-program">پەخشی ڕاستەوخۆ - ${channelName}</div>
-                        <div class="epg-status live">LIVE</div>
-                    </div>
-                    <div class="epg-row">
-                        <div class="epg-time">${times[2]}</div>
-                        <div class="epg-program">بەرنامەی داهاتوو</div>
-                        <div class="epg-status next">داهاتوو</div>
-                    </div>
-                    <div class="epg-row">
-                        <div class="epg-time">${times[3]}</div>
-                        <div class="epg-program">بەرنامەی دواتر</div>
-                        <div class="epg-status next">دواتر</div>
-                    </div>
-                    <div class="epg-row">
-                        <div class="epg-time">${times[4]}</div>
-                        <div class="epg-program">بەرنامەی دواتر</div>
-                        <div class="epg-status next">دواتر</div>
-                    </div>
-                `;
-                return;
-            }
-
-            epgList.innerHTML = '';
-            const now = new Date();
-
-            channelEPG.slice(0, 6).forEach((prog, index) => {
-                const startTime = parseEPGTime(prog.start);
-                const isCurrent = now >= startTime && now < parseEPGTime(prog.stop);
-
-                const row = document.createElement('div');
-                row.className = 'epg-row' + (isCurrent ? ' current' : '');
-                row.innerHTML = `
-                    <div class="epg-time">${formatTime(startTime)}</div>
-                    <div class="epg-program">${prog.title}</div>
-                    <div class="epg-status ${isCurrent ? 'live' : 'next'}">${isCurrent ? 'LIVE' : 'داهاتوو'}</div>
-                `;
-                epgList.appendChild(row);
-            });
-        }
-
-        function parseEPGTime(str) {
-            if (!str) return new Date();
-            const year = str.substr(0, 4);
-            const month = str.substr(4, 2) - 1;
-            const day = str.substr(6, 2);
-            const hour = str.substr(8, 2);
-            const min = str.substr(10, 2);
-            return new Date(year, month, day, hour, min);
-        }
-
-        function formatTime(date) {
-            return date.toLocaleTimeString('en', {hour: '2-digit', minute: '2-digit', hour12: false});
-        }
-
-        function switchView(view) {
-            currentView = view;
-            document.querySelectorAll('.nav-btn').forEach(btn => btn.classList.remove('active'));
-            event.currentTarget.classList.add('active');
-        }
-
-        // Video controls
-        function setupVideoEvents() {
-            const video = document.getElementById('videoPlayer');
-            video.addEventListener('play', () => { isPlaying = true; updatePlayIcon(); });
-            video.addEventListener('pause', () => { isPlaying = false; updatePlayIcon(); });
-            video.addEventListener('volumechange', updateMuteIcon);
+            
+            renderFakeEPG(chan.name);
         }
 
         function togglePlay() {
-            const video = document.getElementById('videoPlayer');
-            if (video.paused) video.play();
-            else video.pause();
+            if(!currentChannel) return;
+            if (isPlaying) {
+                video.pause();
+                isPlaying = false;
+            } else {
+                video.play();
+                isPlaying = true;
+            }
+            updatePlayIcon();
         }
 
         function updatePlayIcon() {
             const icon = document.getElementById('playIcon');
-            icon.className = isPlaying ? 'fas fa-pause' : 'fas fa-play';
-        }
-
-        function toggleMute() {
-            const video = document.getElementById('videoPlayer');
-            video.muted = !video.muted;
-        }
-
-        function updateMuteIcon() {
-            const video = document.getElementById('videoPlayer');
-            const icon = document.getElementById('muteIcon');
-            const slider = document.getElementById('volSlider');
-            slider.value = video.muted ? 0 : video.volume * 100;
-
-            if (video.muted || video.volume === 0) {
-                icon.className = 'fas fa-volume-mute';
-            } else if (video.volume < 0.5) {
-                icon.className = 'fas fa-volume-down';
+            if(isPlaying) {
+                icon.className = 'fas fa-pause';
             } else {
-                icon.className = 'fas fa-volume-up';
+                icon.className = 'fas fa-play';
             }
         }
 
-        function setVolume(value) {
-            const video = document.getElementById('videoPlayer');
-            video.volume = value / 100;
-            video.muted = false;
-            updateMuteIcon();
+        function toggleMute() {
+            video.muted = !video.muted;
+            document.getElementById('muteIcon').className = video.muted ? 'fas fa-volume-mute' : 'fas fa-volume-up';
+            document.getElementById('volSlider').value = video.muted ? 0 : video.volume * 100;
+        }
+
+        function setVolume(val) {
+            video.volume = val / 100;
+            video.muted = (val == 0);
+            document.getElementById('muteIcon').className = video.muted ? 'fas fa-volume-mute' : 'fas fa-volume-up';
         }
 
         function toggleFullscreen() {
-            const player = document.querySelector('.player-area');
             if (!document.fullscreenElement) {
-                player.requestFullscreen();
+                video.requestFullscreen().catch(err => console.log(err));
             } else {
                 document.exitFullscreen();
             }
         }
 
-        function toggleSettings() {
-            alert('ڕێکخستنەکان');
+        function toggleFavorite(e, url) {
+            e.stopPropagation();
+            const index = favorites.indexOf(url);
+            if (index > -1) {
+                favorites.splice(index, 1);
+            } else {
+                favorites.push(url);
+            }
+            localStorage.setItem('kamal_favorites', JSON.stringify(favorites));
+            
+            // Re-render components
+            renderGroupsList();
+            if(currentGroup === 'favorites') {
+                selectGroup('favorites');
+            } else {
+                let currentList = currentGroup ? groups[currentGroup] : allChannels;
+                renderChannelList(currentList);
+            }
         }
 
-        // Keyboard
-        function setupKeyboard() {
-            document.addEventListener('keydown', (e) => {
-                if (e.target.tagName === 'INPUT') return;
-                const video = document.getElementById('videoPlayer');
-
-                switch(e.code) {
-                    case 'Space':
-                        e.preventDefault();
-                        togglePlay();
-                        break;
-                    case 'KeyM':
-                        toggleMute();
-                        break;
-                    case 'KeyF':
-                        toggleFullscreen();
-                        break;
-                    case 'ArrowUp':
-                        e.preventDefault();
-                        navigateChannel(-1);
-                        break;
-                    case 'ArrowDown':
-                        e.preventDefault();
-                        navigateChannel(1);
-                        break;
+        function filterGroups(val) {
+            const lower = val.toLowerCase();
+            const rows = document.querySelectorAll('#groupsList .group-row');
+            rows.forEach(r => {
+                const name = r.querySelector('.group-name').textContent.toLowerCase();
+                if(name.includes(lower)) {
+                    r.style.display = 'flex';
+                } else {
+                    r.style.display = 'none';
                 }
             });
         }
 
-        function navigateChannel(dir) {
-            const rows = Array.from(document.querySelectorAll('.channel-row')).filter(r => r.style.display !== 'none');
-            const activeIndex = rows.findIndex(r => r.classList.contains('active'));
-            const newIndex = activeIndex + dir;
-
-            if (newIndex >= 0 && newIndex < rows.length) {
-                rows[newIndex].click();
-                rows[newIndex].scrollIntoView({ behavior: 'smooth', block: 'center' });
-            }
+        function toggleGroups() {
+            const sidebar = document.getElementById('groupsSidebar');
+            sidebar.classList.toggle('open');
+            document.getElementById('categoriesBtn').classList.toggle('active');
         }
+
+        function switchView(view) {
+            currentView = view;
+            document.getElementById('liveBtn').classList.toggle('active', view === 'live');
+            document.getElementById('epgBtn').classList.toggle('active', view === 'epg');
+            // Can extend logic for full EPG guide interface if needed
+        }
+
+        function renderFakeEPG(channelName) {
+            const list = document.getElementById('epgList');
+            list.innerHTML = `
+                <div class="epg-row current">
+                    <div class="epg-time">17:00 - 19:00</div>
+                    <div class="epg-program">پەخشی ڕاستەوخۆی ${channelName}</div>
+                    <span class="epg-status live">ڕاستەوخۆ</span>
+                </div>
+                <div class="epg-row">
+                    <div class="epg-time">19:00 - 20:30</div>
+                    <div class="epg-program">فیلمی دۆکیۆمێنتاری یان دراما</div>
+                    <span class="epg-status next">دواتر</span>
+                </div>
+                <div class="epg-row">
+                    <div class="epg-time">20:30 - 22:00</div>
+                    <div class="epg-program">بەرنامەی شەوانە</div>
+                    <span class="epg-status next">دواتر</span>
+                </div>
+            `;
+        }
+
+        function setupVideoEvents() {
+            video.addEventListener('play', () => { isPlaying = true; updatePlayIcon(); });
+            video.addEventListener('pause', () => { isPlaying = false; updatePlayIcon(); });
+        }
+        function toggleSettings() { alert('ڕێکخستنەکان بەم زووانە بەردەست دەبن!'); }
     </script>
 </body>
 </html>
